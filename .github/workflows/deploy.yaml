@@ -1,0 +1,35 @@
+name: Deploy Solar Bot
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Deployment Script via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_SECRET: ${{ secrets.ENV_FILE }}
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: ENV_SECRET
+          script: |
+            cd ~/solar-bot
+            
+            # 1. Write the secret's contents into the .env file on the server
+            echo "$ENV_SECRET" > .env
+            
+            # 2. Fetch the latest code so deploy.sh itself is up-to-date
+            git fetch origin main
+
+            # 3. Checkout the latest deploy.sh and ensure execute permissions
+            git checkout origin/main -- deploy.sh
+            chmod +x deploy.sh
+
+            # 4. Run the updated script
+            ./deploy.sh
