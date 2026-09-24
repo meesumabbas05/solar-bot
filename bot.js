@@ -12,7 +12,7 @@ const axios = require('axios');
 const SOLIS_KEY_ID = process.env.SOLIS_KEY_ID;
 const SOLIS_KEY_SECRET = process.env.SOLIS_KEY_SECRET;;
 const SOLIS_API_URL = process.env.SOLIS_BASE_URL;
-const BUFFER_LOAD = 0.30;
+const BUFFER_LOAD = 0.20;
 let lastAlertTime = 0;
 let silencedUntil = 0;
 const ALERT_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
@@ -180,10 +180,18 @@ async function checkThresholds() {
     }
 
     const data = await getInverterData();
+    let nonSolarConsupmtion=0.0;
+    if (!data){return};
+    if (data.battery_power<0){
+        nonSolarConsupmtion += Math.abs(data.battery_power)
+    }
+    if (data.grid_power<0){
+        nonSolarConsupmtion += Math.abs(data.grid_power)
+    }
+    if (nonSolarConsupmtion >= BUFFER_LOAD) {
     
-    if (data && data.load > (data.production + BUFFER_LOAD)) {
-    
-        const msg = `⚠️ *Solar Alert*\nHouse usage (${data.load} kW) is exceeding production (${data.production} kW) by at least ${BUFFER_LOAD} kW.`;
+        const msg = `⚠️ *Solar Alert*\nHouse usage (${data.load} kW) is exceeding production (${data.production} kW) by ${nonSolarConsupmtion} kW, with` 
+                        + `${-1*data.battery_power} from Battery and ${-1*data.grid_power}`;
         authorizedNumbers.forEach(num => client.sendMessage(num, msg));
         
         // Reset the timer after successfully sending the alert
